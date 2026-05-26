@@ -1,5 +1,5 @@
 import os
-import requests
+from utils import http_client as requests
 from loguru import logger
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import math
