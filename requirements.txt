@@ -50,7 +50,7 @@ termcolor==3.3.0
 tqdm==4.67.3
 typing_extensions==4.15.0
 tzlocal==5.2
-url-normalize==2.2.0
+url-normalize==3.0.0
 urllib3==2.7.0
 w3lib==2.4.1
 websockets==10.4
