@@ -1,4 +1,4 @@
-FROM python:3.10-alpine as base
+FROM python:3.14-alpine as base
 
 LABEL org.opencontainers.image.source https://github.com/ghomasHudson/jellyfin-auto-collections
 
