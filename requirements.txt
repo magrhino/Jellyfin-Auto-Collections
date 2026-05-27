@@ -35,7 +35,7 @@ pyaml-env==1.2.1
 pycparser==3.0
 pyee==11.1.1
 Pygments==2.20.0
-pyparsing==3.2.3
+pyparsing==3.3.2
 pyquery==2.0.1
 pytest==9.0.3
 python-dateutil==2.9.0.post0
