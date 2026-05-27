@@ -1,6 +1,6 @@
 appdirs==1.4.4
 APScheduler==3.10.4
-arrapi==1.4.13
+arrapi==1.4.14
 attrs==25.3.0
 beautifulsoup4==4.12.3
 bs4==0.0.2
