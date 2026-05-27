@@ -6,7 +6,6 @@ from plugins.letterboxd import Letterboxd
 def test_lists():
     return [
         "jf_auto_collect/watchlist",
-        "jf_auto_collect/likes/films",
         "jf_auto_collect/list/test_list/"
     ]
 
@@ -20,7 +19,6 @@ def test_list_output():
 # Parametrized test for different lists
 @pytest.mark.parametrize("test_list", [
     "jf_auto_collect/watchlist",
-    "jf_auto_collect/likes/films",
     "jf_auto_collect/list/test_list/"
 ])
 def test_get_list(test_list, test_list_output):
@@ -30,3 +28,7 @@ def test_get_list(test_list, test_list_output):
     # Perform the assertion to check if the "items" key matches the expected output
     assert result["items"] == test_list_output
 
+
+def test_get_list_likes_list_is_not_supported():
+    with pytest.raises(NotImplementedError, match="Likes lists are not currently supported"):
+        Letterboxd.get_list("jf_auto_collect/likes/films", {"imdb_id_filter": True})

@@ -14,8 +14,12 @@ RUN pip install -r requirements.txt
 FROM build as final
 
 WORKDIR /app
-COPY --from=build /app /app
+RUN addgroup -S app && adduser -S -G app app \
+    && mkdir -p /app/config /app/fonts \
+    && chown -R app:app /app /tmp
 
 VOLUME [ "/app/config" ]
+
+USER app
 
 ENTRYPOINT [ "python3.10", "-u", "main.py", "--config", "/app/config/config.yaml" ]
