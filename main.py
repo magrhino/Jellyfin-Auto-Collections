@@ -76,7 +76,11 @@ def main(config):
                 logger.info(f"Getting list info for plugin: {plugin_name}, list id: {list_id}")
 
                 # Match list items to jellyfin items
-                list_info = plugins[plugin_name].get_list(list_id, config['plugins'][plugin_name])
+                try:
+                    list_info = plugins[plugin_name].get_list(list_id, config['plugins'][plugin_name])
+                except Exception as e:
+                    logger.exception(f"Failed processing list {list_id}:" + str(e))
+                    continue
 
                 # Find jellyfin collection or create it
                 collection_id = jf_client.find_collection_with_name_or_create(
