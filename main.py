@@ -9,7 +9,6 @@ import sys
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
-
 import argparse
 parser = argparse.ArgumentParser(description='Jellyfin List Scraper')
 parser.add_argument('--config', type=str, help='Path to config file', default='config.yaml')
