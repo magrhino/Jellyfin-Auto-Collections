@@ -5,11 +5,12 @@ import os
 import requests
 from loguru import logger
 import time
-
+from pathlib import Path
 class Trakt(ListScraper):
 
     _alias_ = 'trakt'
-    _access_token_file = '.trakt_access_token'
+    _working_directory = Path("/app/config") if os.getenv("RUNNING_IN_DOCKER", "").lower() == "true" else Path.cwd()
+    _access_token_file = str(_working_directory) + '/.trakt_access_token'
 
     _chart_types = {
             "movies/trending": {
@@ -89,7 +90,7 @@ class Trakt(ListScraper):
             # If we have already authenticated, read the access token from the file
             with open(Trakt._access_token_file, 'r') as f:
                 access_token = f.read()
-            logger.debug("Existing access token found")
+            logger.debug(f"Existing access token found at {Trakt._access_token_file}")
         else:
             # If we have not authenticated, get the access token from the user
             r = requests.post("https://api.trakt.tv/oauth/device/code", headers=headers, json={"client_id": config["client_id"]})
