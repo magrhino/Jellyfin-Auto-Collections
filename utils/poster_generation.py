@@ -49,9 +49,9 @@ def fetch_collection_posters(jellyfin_url, api_key, user_id, collection_id):
     Fetches the poster URLs for all items in the specified collection.
     """
     logger.info(f"Fetching posters for collection ID {collection_id}...")
-    headers = {'X-Emby-Token': api_key}
-    url = f"{jellyfin_url}/Users/{user_id}/Items"
-    params = {'parentId': collection_id}
+    headers = {'Authorization': f'MediaBrowser Token="{api_key}"'}
+    url = f"{jellyfin_url}/Items"
+    params = {'parentId': collection_id, 'userId': user_id}
     response = requests.get(url, headers=headers, params=params)
     response.raise_for_status()
     items = response.json().get('Items', [])

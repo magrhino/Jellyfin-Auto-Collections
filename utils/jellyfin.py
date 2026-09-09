@@ -33,15 +33,17 @@ class JellyfinClient:
             raise Exception("Server is not reachable")
 
         # Check if api key is valid
-        res = requests.get(f"{self.server_url}/System/Info", headers={"X-Emby-Token": self.api_key})
+        res = requests.get(f"{self.server_url}/System/Info", headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'})
+        if res.status_code == 401:
+            raise Exception("Jellyfin rejected the API key (HTTP 401). Check that the key belongs to this server and has not been revoked.")
         if res.status_code != 200:
-            raise Exception("Invalid API key")
+            raise Exception(f"Jellyfin API check failed for {self.server_url}/System/Info (HTTP {res.status_code}). Check the server URL and any reverse-proxy base path.")
 
         jf_info = res.json()
         logger.debug(f"Jellyfin Version: {jf_info['Version']}")
 
         # Check if user id is valid
-        res = requests.get(f"{self.server_url}/Users/{self.user_id}", headers={"X-Emby-Token": self.api_key})
+        res = requests.get(f"{self.server_url}/Users/{self.user_id}", headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'})
         if res.status_code != 200:
             raise Exception("Invalid user id")
 
@@ -52,10 +54,11 @@ class JellyfinClient:
             "enableImages": "false",
             "Recursive": "true",
             "includeItemTypes": "BoxSet",
-            "fields": ["Name", "Id", "Tags"]
+            "fields": ["Name", "Id", "Tags"],
+            "userId": self.user_id
         }
         logger.info("Getting collections list...")
-        res = requests.get(f'{self.server_url}/Users/{self.user_id}/Items',headers={"X-Emby-Token": self.api_key}, params=params)
+        res = requests.get(f'{self.server_url}/Items',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, params=params)
         return res.json()["Items"]
 
 
@@ -83,23 +86,27 @@ class JellyfinClient:
         if collection_id is None:
             # Collection doesn't exist -> Make a new one
             logger.info("No matching collection found for: " + list_name + ". Creating new collection...")
-            res2 = requests.post(f'{self.server_url}/Collections',headers={"X-Emby-Token": self.api_key}, params={"name": list_name})
+            res2 = requests.post(f'{self.server_url}/Collections',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, params={"name": list_name})
             collection_id = res2.json()["Id"]
 
         # Update collection description and add tags to we can find it later
         if collection_id is not None:
-            collection = requests.get(f'{self.server_url}/Users/{self.user_id}/Items/{collection_id}', headers={"X-Emby-Token": self.api_key}).json()
+            collection = requests.get(
+                f'{self.server_url}/Items/{collection_id}',
+                headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'},
+                params={"userId": self.user_id}
+            ).json()
             if collection.get("Overview", "") == "" and description is not None:
                 collection["Overview"] = description
             collection["Tags"] = list(set(collection.get("Tags", []) + ["Jellyfin-Auto-Collections", plugin_name, json.dumps(list_id)]))
-            r = requests.post(f'{self.server_url}/Items/{collection_id}',headers={"X-Emby-Token": self.api_key}, json=collection)
+            r = requests.post(f'{self.server_url}/Items/{collection_id}',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, json=collection)
 
         return collection_id
 
     def has_poster(self, collection_id):
         '''Check if a collection already has a poster'''
         poster_url = f"{self.server_url}/Items/{collection_id}/Images/Primary"
-        r = requests.get(poster_url, headers={"X-Emby-Token": self.api_key})
+        r = requests.get(poster_url, headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'})
         if r.status_code == 404:
             return False
         return True
@@ -109,7 +116,7 @@ class JellyfinClient:
 
         # Check if collection poster exists
         poster_urls = fetch_collection_posters(self.server_url, self.api_key, self.user_id, collection_id)[:mosaic_limit]
-        headers={"X-Emby-Token": self.api_key}
+        headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}
 
         # Use a ThreadPoolExecutor to download images in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -156,12 +163,13 @@ class JellyfinClient:
             "Recursive": "true",
             "IncludeItemTypes": item["media_type"],
             "searchTerm": item["title"],
-            "fields": ["ProviderIds", "ProductionYear"]
+            "fields": ["ProviderIds", "ProductionYear"],
+            "userId": self.user_id
         }
 
         params = {**params, **jellyfin_query_parameters}
 
-        res = requests.get(f'{self.server_url}/Users/{self.user_id}/Items',headers={"X-Emby-Token": self.api_key}, params=params)
+        res = requests.get(f'{self.server_url}/Items',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, params=params)
 
         # Check if there's an exact imdb_id match first
         match = None
@@ -190,7 +198,7 @@ class JellyfinClient:
         else:
             try:
                 item_id = match["Id"]
-                requests.post(f'{self.server_url}/Collections/{collection_id}/Items?ids={item_id}',headers={"X-Emby-Token": self.api_key})
+                requests.post(f'{self.server_url}/Collections/{collection_id}/Items?ids={item_id}',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'})
                 logger.info(f"Added {item['title']} to collection")
                 logger.debug(f"\tList item: {item}")
                 logger.debug(f"\tMatched JF item: {match}")
@@ -203,12 +211,12 @@ class JellyfinClient:
 
     def clear_collection(self, collection_id: str):
         '''Clears a collection by removing all items from it'''
-        res = requests.get(f'{self.server_url}/Users/{self.user_id}/Items',headers={"X-Emby-Token": self.api_key}, params={"Recursive": "true", "parentId": collection_id})
+        res = requests.get(f'{self.server_url}/Items',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, params={"Recursive": "true", "parentId": collection_id, "userId": self.user_id})
         all_ids = [item["Id"] for item in res.json()["Items"]]
 
         # chunk ids into groups of 10
         all_ids = [all_ids[i:i + 10] for i in range(0, len(all_ids), 10)]
         for ids in all_ids:
-             requests.delete(f'{self.server_url}/Collections/{collection_id}/Items',headers={"X-Emby-Token": self.api_key}, params={"ids": ",".join(ids)})
+             requests.delete(f'{self.server_url}/Collections/{collection_id}/Items',headers={"Authorization": f'MediaBrowser Token="{self.api_key}"'}, params={"ids": ",".join(ids)})
 
         logger.info(f"Cleared collection {collection_id}")
